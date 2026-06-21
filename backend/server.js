@@ -18,60 +18,6 @@ app.use(express.json());
 
 
 
-/* ============================ PRODUCTOS =========================== */
-app.get('/api/products', async (req, res) => {
-  try {
-    const rows = await all('SELECT * FROM products ORDER BY id');
-    res.json(rows.map(withAvailability));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const row = await get('SELECT * FROM products WHERE id = ?', [req.params.id]);
-    if (!row) return res.status(404).json({ message: 'Producto no encontrado' });
-    res.json(withAvailability(row));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/products', authenticate, isAdmin, async (req, res) => {
-  try {
-    const { name, description, price, stock, stock_limit, image_url } = req.body;
-    const result = await run(
-      'INSERT INTO products (name, description, price, stock, stock_limit, image_url) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, description, price, stock, stock_limit ?? 5, image_url]
-    );
-    res.status(201).json({ id: result.lastID, name, description, price, stock, stock_limit: stock_limit ?? 5, image_url });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/products/:id', authenticate, isAdmin, async (req, res) => {
-  try {
-    const { name, description, price, stock, stock_limit, image_url } = req.body;
-    await run(
-      'UPDATE products SET name = ?, description = ?, price = ?, stock = ?, stock_limit = ?, image_url = ? WHERE id = ?',
-      [name, description, price, stock, stock_limit ?? 5, image_url, req.params.id]
-    );
-    res.json({ message: 'Producto actualizado' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/products/:id', authenticate, isAdmin, async (req, res) => {
-  try {
-    await run('DELETE FROM products WHERE id = ?', [req.params.id]);
-    res.json({ message: 'Producto eliminado' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 /* ============================= CARRITO ============================ */
 const getCart = async (userId) => {
