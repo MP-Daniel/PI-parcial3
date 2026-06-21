@@ -6,74 +6,15 @@ const db = require('./database');
 const { run, get, all } = db;
 
 const app = express();
-const PORT = 5001;
-const SECRET_KEY = 'supersecretkey_for_simple_app';
 
 app.use(cors());
 app.use(express.json());
 
-/* ============================ MIDDLEWARE ============================ */
-const authenticate = (req, res, next) => {
-  const token = req.header('Authorization');
-  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-  try {
-    req.user = jwt.verify(token.replace('Bearer ', ''), SECRET_KEY);
-    next();
-  } catch (err) {
-    res.status(400).json({ message: 'Token no válido' });
-  }
-};
 
-const isAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Requiere permisos de administrador' });
-  }
-  next();
-};
 
-/* Producto disponible para compra: hay stock y está por encima del umbral. */
-const isAvailable = (p) => p.stock > 0 && p.stock > p.stock_limit;
-const withAvailability = (p) => ({ ...p, available: isAvailable(p), low_stock: !isAvailable(p) });
 
-/* ============================== AUTH =============================== */
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: 'Faltan credenciales' });
 
-    const user = await get('SELECT * FROM users WHERE username = ?', [username]);
-    if (!user) return res.status(400).json({ message: 'Usuario no encontrado' });
-    if (!bcrypt.compareSync(password, user.password)) {
-      return res.status(400).json({ message: 'Contraseña incorrecta' });
-    }
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '8h' });
-    res.json({ token, role: user.role, username: user.username });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// Registro de cliente
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, password, full_name, email } = req.body;
-    if (!username || !password) return res.status(400).json({ message: 'Usuario y contraseña son obligatorios' });
-    if (password.length < 4) return res.status(400).json({ message: 'La contraseña debe tener al menos 4 caracteres' });
-
-    const exists = await get('SELECT id FROM users WHERE username = ?', [username]);
-    if (exists) return res.status(400).json({ message: 'El usuario ya existe' });
-
-    const hash = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
-    const result = await run(
-      'INSERT INTO users (username, password, role, full_name, email) VALUES (?, ?, ?, ?, ?)',
-      [username, hash, 'client', full_name || null, email || null]
-    );
-    const token = jwt.sign({ id: result.lastID, username, role: 'client' }, SECRET_KEY, { expiresIn: '8h' });
-    res.status(201).json({ token, role: 'client', username });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 /* ============================= PERFIL ============================== */
 app.get('/api/profile', authenticate, async (req, res) => {
@@ -271,38 +212,7 @@ app.delete('/api/cart', authenticate, async (req, res) => {
   }
 });
 
-/* ===================== PASARELA DE PAGO (SIMULADA) ================= */
-// Algoritmo de Luhn (validación académica de número de tarjeta).
-const luhnValid = (number) => {
-  const digits = number.replace(/\D/g, '');
-  if (digits.length < 13 || digits.length > 19) return false;
-  let sum = 0, even = false;
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let d = parseInt(digits[i], 10);
-    if (even) { d *= 2; if (d > 9) d -= 9; }
-    sum += d; even = !even;
-  }
-  return sum % 10 === 0;
-};
 
-// Simulación del gateway: devuelve aprobación o rechazo con motivo.
-const simulateGateway = ({ card_number, card_name, expiry, cvv }) => {
-  const num = (card_number || '').replace(/\s/g, '');
-  if (!card_name || !num || !expiry || !cvv) return { ok: false, reason: 'Datos de tarjeta incompletos' };
-  if (!/^\d{3,4}$/.test(cvv)) return { ok: false, reason: 'CVV inválido' };
-  if (!/^\d{2}\/\d{2}$/.test(expiry)) return { ok: false, reason: 'Fecha de expiración inválida (MM/AA)' };
-
-  const [mm, yy] = expiry.split('/').map((x) => parseInt(x, 10));
-  if (mm < 1 || mm > 12) return { ok: false, reason: 'Mes de expiración inválido' };
-  const exp = new Date(2000 + yy, mm); // primer día del mes siguiente
-  if (exp <= new Date()) return { ok: false, reason: 'La tarjeta está vencida' };
-
-  if (!luhnValid(num)) return { ok: false, reason: 'Número de tarjeta inválido (Luhn)' };
-  if (num === '4000000000000002') return { ok: false, reason: 'Tarjeta rechazada: fondos insuficientes' };
-
-  const transaction_id = 'TXN-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-  return { ok: true, transaction_id, last4: num.slice(-4) };
-};
 
 app.post('/api/checkout', authenticate, async (req, res) => {
   try {
