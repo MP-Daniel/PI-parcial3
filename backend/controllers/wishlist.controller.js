@@ -19,7 +19,7 @@ const getWishlist = async (req, res) => {
   }
 };
 
-const addWishlist = async (req, res) => {
+const addToWishlist = async (req, res) => {
   try {
     const { product_id } = req.body;
     const p = await get('SELECT * FROM products WHERE id = ?', [product_id]);
@@ -66,7 +66,7 @@ const getWishlistHistory = async (req, res) => {
 
 module.exports = {
     getWishlist,
-    addWishlist,
+    addToWishlist,
     removeFromWishlist,
     getWishlistHistory 
 };

@@ -159,11 +159,8 @@ async function init() {
   }
 }
 
-db.serialize(() => {
-  init().catch((err) => console.error('Error inicializando BD:', err));
-});
+module.exports = { run, get, all, raw: db, initDB: init };
 
 // Exportamos un objeto con los helpers de promesas (run/get/all) y la
 // instancia cruda bajo "raw". Importante: NO exportar la instancia directa
 // para no sobrescribir sus métodos nativos db.run/db.get/db.all.
-module.exports = { run, get, all, raw: db };

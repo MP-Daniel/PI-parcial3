@@ -4,7 +4,7 @@ const { withAvailability } = require('../utils/availability');
 
 
 /* ============================ PRODUCTOS =========================== */
-const getProducts = async (req, res) => {
+const getAllProducts = async (req, res) => {
   try {
     const rows = await all('SELECT * FROM products ORDER BY id');
     res.json(rows.map(withAvailability));
@@ -56,4 +56,12 @@ const deleteProduct = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+module.exports = {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct
 };
