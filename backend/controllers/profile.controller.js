@@ -2,7 +2,6 @@
 const bcrypt = require('bcryptjs');
 const { get, run } = require('../database');
 
-
 /* ============================= PERFIL ============================== */
 const getProfile = async (req, res) => {
   try {
@@ -51,3 +50,6 @@ const updatePassword = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+module.exports = { getProfile, updateProfile, updatePassword };
